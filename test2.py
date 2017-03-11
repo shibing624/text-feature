@@ -6,5 +6,3 @@
 from __future__ import print_function
 from __future__ import unicode_literals
 
-c = 1 + 2
-print(c)
