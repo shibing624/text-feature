@@ -1,64 +1,42 @@
 # coding=utf-8
-import sys
-import time
+from __future__ import division
 import os
 import ConfigParser
 import collections
-import jieba
-import jieba.analyse
-from textrank4zh import TextRank4Keyword, TextRank4Sentence
 
 conf = ConfigParser.ConfigParser()
 conf.read("arg.cfg")
 stopwords_path = conf.get("path", "stopwords_path")
-stopwords = {word.decode("utf-8") for word in open(stopwords_path).read().split()}
-a_path = conf.get("path", "a_path")
-b_path = conf.get("path", "b_path")
+segmented_path = conf.get("path", "segmented_path")
+sentence_symbol_path = conf.get("path", "sentence_symbol_path")
 test_path = conf.get("path", "test_path")
 raw_path = conf.get('path', 'raw_path')
-segmented_path = conf.get('path', 'segmented_path')
-top_word_num = 30
-top_sentence_num = 10
+result_path = conf.get('path', 'result_path')
 
 
-def analysis_sentence():
-    files = getFiles(raw_path)
+def analysis_word(path=segmented_path):
+    result_file_path = result_path + '/word_result.txt'
+    files = get_files(path)
+    result_file = file(result_file_path, "w+")
+    result_file.writelines(
+        "文件名" + "\t" + "名词数" + "\t" + "名词数占比" + "\t" + "动词数" + "\t" + "动词数占比" + "\t" + "形容词数" + "\t" +
+        "形容词数占比" + "\t" + "数词数" + "\t" + "数词数占比" + "\t" + "代词数" + "\t" + "代词数占比" + "\t" +
+        "量词数" + "\t" + "量词数占比" + "\t" + "副词数" + "\t" + "副词数占比" + "\t" + "介词数" + "\t" + "介词数占比" + "\t" +
+        "连词数" + "\t" + "连词数占比" + "\t" + "助词数" + "\t" + "助词数占比" + "\t" + "叹词数" + "\t" + "叹词数占比" + "\t" +
+        "拟声词数" + "\t" + "拟声词数占比" + "\t" + "标点数" + "\t" + "标点数占比" + "\t" + "人名数" + "\t" + "人名数占比" + "\t" +
+        "词总数" + "\t" + "字总数" + "\t" + "平均词长" + "\t" + "一字词数" + "\t" + "一字词占比" + "\t" +
+        "二字词数" + "\t" + "二字词占比" + "\t" + "三字词数" + "\t" + "三字词占比" + "\t" + "四字词数" + "\t" +
+        "四字词占比" + "\t" + "段落数" + "\t" + "段落平均字数" + "\t" +
+        "句子数" + "\t" + "句子平均字数" + "\t" + "\n")
     for f in files:
-        f_word_result = file(f.split("\\")[-1][:-4] + "_sentence_result.txt", "w+")
-        content = open(f).read()
-        f_word_result.write("\n\n" + "关键词：" + "\n")
-        tags = jieba.analyse.extract_tags(content, top_word_num)
-        for i in tags:
-            f_word_result.write(i.encode('utf-8') + '\n')
-
-        word = TextRank4Keyword()
-        word.analyze(content)
-        phrase = word.get_keyphrases(keywords_num=top_word_num, min_occur_num=2)
-        f_word_result.write("\n\n" + "关键词组：" + "\n")
-        for p in phrase:
-            f_word_result.write(p.encode('utf-8') + '\n')
-
-        f_word_result.write("\n\n" + "摘要：" + "\n")
-        sentence = TextRank4Sentence()
-        sentence.analyze(content)
-        s_list = sentence.get_key_sentences(num=top_sentence_num)
-        for s in s_list:
-            f_word_result.write(s.sentence.encode('utf-8') + '\n')
-        print(f,' ok ')
-        f_word_result.close()
-
-
-def analysis_word():
-    files = getFiles(b_path)
-    result_file = file("result.txt", "w+")
-    for f in files:
-        f_word_result = file(f.split("\\")[-1][:-4] + "_word_result.txt", "w+")
-        content = open(f).read().split("  ")
-
-        text_list = [word.decode("utf-8") for word in content]
-        text_set = {word.decode("utf-8") for word in content}
-        print " ", a_path, " text_list:", len(text_list)
-        print len(text_set), "text", len(set(text_set))
+        f_word_result = file(result_path + '/' + f.split("\\")[-1][:-4] + "_word_result.txt", "w+")
+        c = open(f).read()
+        print('paragraphs:', c.count('\n'))
+        num_paragraph = c.count('\n')
+        print('num_word:', len(c.split()))
+        content_list = c.split()
+        text_list = [word.decode("utf-8") for word in content_list]
+        print " ", path, " text_list:", len(text_list)
 
         n_list = [w for w in text_list if w.endswith('/n')]
         print len(n_list)  # 名词
@@ -68,130 +46,189 @@ def analysis_word():
         # 词频前N的单词
         top_freq = freq.most_common(2)
         print top_freq
+
+        # 文件名称
+        result_file.write('' + f.split("\\")[-1][:-4].decode('gbk').encode('utf-8') + "\t")
+        num_word = len(text_list)  # 词总数
         n_set = sorted([w for w in text_list if w.endswith('/n')])
         print len(n_set)  # 名词
-        result_file.writelines(str(len(n_set)) + " ")
+        result_file.writelines(str(len(n_set)) + "\t")
+        result_file.write(str(float(len(n_set) / num_word)) + "\t")
         n_top = collections.Counter(n_set).most_common(100)
-        f_word_result.write("\n\n名词:" + "\n")
+        f_word_result.write("名词:" + "\n")
         write_word(f_word_result, n_top)
 
         v_set = sorted([w for w in text_list if w.endswith('/v')])
         print len(v_set)  # 动词
-        result_file.writelines(str(len(v_set)) + " ")
+        result_file.writelines(str(len(v_set)) + "\t")
+        result_file.write(str(float(len(v_set) / num_word)) + "\t")
         v_top = collections.Counter(v_set).most_common(100)
         f_word_result.write("\n\n动词:" + "\n")
         write_word(f_word_result, v_top)
 
         a_set = sorted([w for w in text_list if w.endswith('/a')])
         print len(a_set)  # 形容词
-        result_file.writelines(str(len(a_set)) + " ")
+        result_file.writelines(str(len(a_set)) + "\t")
+        result_file.write(str(float(len(a_set) / num_word)) + "\t")
         a_top = collections.Counter(a_set).most_common(100)
         f_word_result.write("\n\n形容词:" + "\n")
         write_word(f_word_result, a_top)
 
         m_set = sorted([w for w in text_list if w.endswith('/m')])
         print len(m_set)  # 数词
-        result_file.writelines(str(len(m_set)) + " ")
+        result_file.writelines(str(len(m_set)) + "\t")
+        result_file.write(str(float(len(m_set) / num_word)) + "\t")
         m_top = collections.Counter(m_set).most_common(100)
         f_word_result.write("\n\n数词:" + "\n")
         write_word(f_word_result, m_top)
 
         r_set = sorted([w for w in text_list if w.endswith('/r')])
         print len(r_set)  # 代词
-        result_file.writelines(str(len(r_set)) + " ")
+        result_file.writelines(str(len(r_set)) + "\t")
+        result_file.write(str(float(len(r_set) / num_word)) + "\t")
         r_top = collections.Counter(r_set).most_common(100)
         f_word_result.write("\n\n代词:" + "\n")
         write_word(f_word_result, r_top)
 
         q_set = sorted([w for w in text_list if w.endswith('/q')])
         print len(q_set)  # 量词
-        result_file.writelines(str(len(q_set)) + " ")
+        result_file.writelines(str(len(q_set)) + "\t")
+        result_file.write(str(float(len(q_set) / num_word)) + "\t")
         q_top = collections.Counter(q_set).most_common(100)
         f_word_result.write("\n\n量词:" + "\n")
         write_word(f_word_result, q_top)
 
         d_set = sorted([w for w in text_list if w.endswith('/d')])
         print len(d_set)  # 副词
-        result_file.writelines(str(len(d_set)) + " ")
+        result_file.writelines(str(len(d_set)) + "\t")
+        result_file.write(str(float(len(d_set) / num_word)) + "\t")
         d_top = collections.Counter(d_set).most_common(100)
         f_word_result.write("\n\n副词:" + "\n")
         write_word(f_word_result, d_top)
 
         p_set = sorted([w for w in text_list if w.endswith('/p')])
         print len(p_set)  # 介词
-        result_file.writelines(str(len(p_set)) + " ")
+        result_file.writelines(str(len(p_set)) + "\t")
+        result_file.write(str(float(len(p_set) / num_word)) + "\t")
         p_top = collections.Counter(p_set).most_common(100)
         f_word_result.write("\n\n介词:" + "\n")
         write_word(f_word_result, p_top)
 
         c_set = sorted([w for w in text_list if w.endswith('/c')])
         print len(c_set)  # 连词
-        result_file.writelines(str(len(c_set)) + " ")
+        result_file.writelines(str(len(c_set)) + "\t")
+        result_file.write(str(float(len(c_set) / num_word)) + "\t")
         c_top = collections.Counter(c_set).most_common(100)
         f_word_result.write("\n\n连词:" + "\n")
         write_word(f_word_result, c_top)
 
         u_set = sorted([w for w in text_list if w.endswith('/u')])
         print len(u_set)  # 助词
-        result_file.writelines(str(len(u_set)) + " ")
+        result_file.writelines(str(len(u_set)) + "\t")
+        result_file.write(str(float(len(u_set) / num_word)) + "\t")
         u_top = collections.Counter(u_set).most_common(100)
         f_word_result.write("\n\n助词:" + "\n")
         write_word(f_word_result, u_top)
 
         e_set = sorted([w for w in text_list if w.endswith('/e')])
         print len(e_set)  # 叹词
-        result_file.writelines(str(len(e_set)) + " ")
+        result_file.writelines(str(len(e_set)) + "\t")
+        result_file.write(str(float(len(e_set) / num_word)) + "\t")
         e_top = collections.Counter(e_set).most_common(100)
         f_word_result.write("\n\n叹词:" + "\n")
         write_word(f_word_result, e_top)
 
         o_set = sorted([w for w in text_list if w.endswith('/o')])
         print len(o_set)  # 拟声词
-        result_file.writelines(str(len(o_set)) + " ")
+        result_file.writelines(str(len(o_set)) + "\t")
+        result_file.write(str(float(len(o_set) / num_word)) + "\t")
         o_top = collections.Counter(o_set).most_common(100)
         f_word_result.write("\n\n拟声词:" + "\n")
         write_word(f_word_result, o_top)
 
         w_set = sorted([w for w in text_list if w.endswith('/w')])
         print len(w_set)  # 标点
-        result_file.writelines("punctuation:" + str(len(w_set)) + " ")
+        result_file.writelines(str(len(w_set)) + "\t")
+        result_file.write(str(float(len(w_set) / num_word)) + "\t")
         w_top = collections.Counter(w_set).most_common(100)
         f_word_result.write("\n\n标点:" + "\n")
         write_word(f_word_result, w_top)
 
         nh_set = sorted([w for w in text_list if '/nh' in w])
         print len(nh_set)  # 人名
-        result_file.writelines("person_name:" + str(len(nh_set)) + " ")
+        result_file.writelines(str(len(nh_set)) + "\t")
+        result_file.write(str(float(len(nh_set) / num_word)) + "\t")
         nh_top = collections.Counter(nh_set).most_common(100)
         f_word_result.write("\n\n人名:" + "\n")
         write_word(f_word_result, nh_top)
 
-        result_file.write(str(f) + " word_total_count: " + str(len(text_list)) + "\n")
+        result_file.write(str(num_word) + "\t")  # 词总数
+        word_list = [w.split('/')[0] for w in text_list]
+        sentence_symbol = [word.decode("utf-8") for word in open(sentence_symbol_path).read().split()]
+        sentence_list = [w for w in word_list if w in sentence_symbol]
+        num_sentence = len(sentence_list)  # 段落数
+        word_no_pos_len_list = [len(w.split('/')[0]) for w in text_list]
+
+        num_char = sum(len(w.split('/')[0]) for w in text_list)  # 字总数
+        result_file.write(str(num_char) + "\t")  # 字总数
+        average_word_len = float(num_char / num_word)
+        print("word average length: ", str(average_word_len))
+        result_file.write(str(average_word_len) + "\t")  # 单词平均长度
+
+        # 利用collections库中的Counter模块，可以很轻松地得到一个由单词和词频组成的字典。
+        len_counts = collections.Counter(word_no_pos_len_list)
+        if len_counts.get(1):
+            result_file.write(str(len_counts.get(1)) + "\t")  # 1字词个数
+            result_file.write(str(float(len_counts.get(1) / num_word)) + "\t")  # 1字词占比
+        else:
+            result_file.write(str(0) + "\t" + str(0) + "\t")
+        if len_counts.get(2):
+            result_file.write(str(len_counts.get(2)) + "\t")  # 2字词个数
+            result_file.write(str(float(len_counts.get(2) / num_word)) + "\t")  # 2字词占比
+        else:
+            result_file.write(str(0) + "\t" + str(0) + "\t")
+        if len_counts.get(3):
+            result_file.write(str(len_counts.get(3)) + "\t")  # 3字词个数
+            result_file.write(str(float(len_counts.get(3) / num_word)) + "\t")  # 3字词占比
+        else:
+            result_file.write(str(0) + "\t" + str(0) + "\t")
+        if len_counts.get(4):
+            result_file.write(str(len_counts.get(4)) + "\t")  # 4字词个数
+            result_file.write(str(float(len_counts.get(4) / num_word)) + "\t")  # 4字词占比
+        else:
+            result_file.write(str(0) + "\t" + str(0) + "\t")
+        if num_paragraph > 0:
+            result_file.write(str(num_paragraph) + "\t")  # 段落数
+            result_file.write(str(float(num_char / num_paragraph)) + "\t")  # 段落平均字数
+        else:
+            result_file.write(str(0) + "\t" + str(0) + "\t")
+        if num_sentence > 0:
+            result_file.write(str(num_sentence) + "\t")  # 句子数
+            result_file.write(str(float(num_char / num_sentence)) + "\t")  # 句子平均字数
+        else:
+            result_file.write(str(0) + "\t" + str(0) + "\t")
+        result_file.write("\n")
         f_word_result.close()
     result_file.close()
 
 
-def getFiles(path):
-    list = []
+def get_files(path):
+    files = []
     for parent, dirnames, filenames in os.walk(path):  # 三个参数：分别返回1.父目录 2.所有文件夹名字（不含路径） 3.所有文件名字
         for filename in filenames:  # 输出文件信息
             # print "parent is:" + parent
             # print "filename is:" + filename
             # print "the full name of the file is:" + os.path.join(parent, filename)  # 输出文件路径信息
-            list.append(os.path.join(parent, filename))
-        print list
-        return list
+            files.append(os.path.join(parent, filename))
+        return files
 
 
-def write_word(f_word_result, top):
-    for i in top:
-        for k in i:
-            if isinstance(k, int):
-                f_word_result.write("\t" + str(k) + "\n")
-            else:
-                f_word_result.write(k.encode('utf-8').split('/')[0])
+def write_word(f_word_result, tops):
+    for top in tops:
+        f_word_result.write(top[0].encode('utf-8').split('/')[0] + "\t")
+        f_word_result.write(str(top[1]))
+        f_word_result.write("\n")
 
 
 if __name__ == '__main__':
     analysis_word()
-    analysis_sentence()
