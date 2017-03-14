@@ -27,7 +27,7 @@ def analysis_word(path=segmented_path):
         "词总数" + "\t" + "字总数" + "\t" + "平均词长" + "\t" + "一字词数" + "\t" + "一字词占比" + "\t" +
         "二字词数" + "\t" + "二字词占比" + "\t" + "三字词数" + "\t" + "三字词占比" + "\t" + "四字词数" + "\t" +
         "四字词占比" + "\t" + "段落数" + "\t" + "段落平均字数" + "\t" +
-        "句子数" + "\t" + "句子平均字数" + "\t" + "\n")
+        "句子数（长句）" + "\t" + "句子平均字数（长句）" + "\t" + "句子数（短句）" + "\t" + "句子平均字数（短句）" + "\t""\n")
     for f in files:
         f_word_result = file(result_path + '/' + f.split("\\")[-1][:-4] + "_word_result.txt", "w+")
         c = open(f).read()
@@ -165,8 +165,10 @@ def analysis_word(path=segmented_path):
         result_file.write(str(num_word) + "\t")  # 词总数
         word_list = [w.split('/')[0] for w in text_list]
         sentence_symbol = [word.decode("utf-8") for word in open(sentence_symbol_path).read().split()]
-        sentence_list = [w for w in word_list if w in sentence_symbol]
-        num_sentence = len(sentence_list)  # 段落数
+        sentence_list_long = [w for w in word_list if w in sentence_symbol[:6]]  # 长句
+        sentence_list_short = [w for w in word_list if w in sentence_symbol]  # 短句
+        num_sentence_long = len(sentence_list_long)  # 段落数
+        num_sentence_short = len(sentence_list_short)  # 段落数
         word_no_pos_len_list = [len(w.split('/')[0]) for w in text_list]
 
         num_char = sum(len(w.split('/')[0]) for w in text_list)  # 字总数
@@ -202,9 +204,14 @@ def analysis_word(path=segmented_path):
             result_file.write(str(float(num_char / num_paragraph)) + "\t")  # 段落平均字数
         else:
             result_file.write(str(0) + "\t" + str(0) + "\t")
-        if num_sentence > 0:
-            result_file.write(str(num_sentence) + "\t")  # 句子数
-            result_file.write(str(float(num_char / num_sentence)) + "\t")  # 句子平均字数
+        if num_sentence_long > 0:
+            result_file.write(str(num_sentence_long) + "\t")  # 句子数（长句）
+            result_file.write(str(float(num_char / num_sentence_long)) + "\t")  # 句子平均字数
+        else:
+            result_file.write(str(0) + "\t" + str(0) + "\t")
+        if num_sentence_short > 0:
+            result_file.write(str(num_sentence_short) + "\t")  # 句子数(短句)
+            result_file.write(str(float(num_char / num_sentence_short)) + "\t")  # 句子平均字数（短句）
         else:
             result_file.write(str(0) + "\t" + str(0) + "\t")
         result_file.write("\n")
