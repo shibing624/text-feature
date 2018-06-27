@@ -60,7 +60,7 @@ def main():
             if t not in topic_list and len(topic_list) < topic_num:
                 topic_list.append(t)
                 f_word_result.write(t + '\n')
-        print('save to: ' + file_name + " ok.")
+        print(f + ' save to: ' + file_name + " ok.")
     f_word_result.close()
 
 
